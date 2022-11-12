@@ -23,7 +23,7 @@ modmap = {
     Qt.KeypadModifier: keymap[Qt.Key_NumLock],
     }
 
-
+# Функция, отвечающая за получение названия клавиши, или сочетания клавиш
 def keyevent_to_string(event):
     sequence = []
     for modifier, text in modmap.items():
@@ -34,7 +34,7 @@ def keyevent_to_string(event):
         sequence.append(key)
     return '+'.join(sequence)
 
-
+# Далее идут классы ошибок
 class RootCategoryChange(Exception):
     pass
 
@@ -58,7 +58,7 @@ class KeyIsUsed(Exception):
 class KeyLineIsEmpty(Exception):
     pass
 
-
+# Класс основного виджета приложения
 class SoundpadWidget(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
@@ -88,6 +88,7 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
         self.activateWindow()
         self.setFocus()
 
+    # Вызов диалога для создания или изменения категорий
     def dialog_for_category_action(self, changing=False):
         try:
             if not self.adding_changing:
@@ -145,6 +146,7 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
             self.adding_changing = False
             self.activateWindow()
 
+    # Добавление звука, вызов окна добавления
     def add_new_sound(self):
         if not self.adding_changing:
             self.adding_changing = True
@@ -152,7 +154,8 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
             add_widget.show()
             add_widget.exec_()
             add_widget.activateWindow()
-
+    
+    # Обновление таблицы с категориями
     def update_categories_table(self):
         all_categories = self.cur.execute("""SELECT name FROM Categories""").fetchall()
         all_categories = [e[0] for e in all_categories]
@@ -161,7 +164,8 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
         self.categories_table.setHorizontalHeaderLabels(['Категории'])
         for i, category in enumerate(all_categories):
             self.categories_table.setItem(i, 0, QTableWidgetItem(category))
-
+    
+    # Обновление таблицы со всеми звуками
     def update_all_sounds_table(self):
         self.sounds_table.setRowCount(0)
         all_sounds = self.cur.execute("""SELECT name, key, cat_name FROM Sounds""").fetchall()
@@ -171,7 +175,8 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
         for i, sound in enumerate(all_sounds):
             for j, elem in enumerate(sound):
                 self.sounds_table.setItem(i, j, QTableWidgetItem(elem))
-
+    
+    # Обновление таблицы со звуками, относящимися к выбранной категории
     def update_category_sounds_table(self, filecat):
         self.sounds_table.setRowCount(0)
         self.sounds_table.setColumnCount(2)
@@ -182,7 +187,8 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
         for i, sound in enumerate(cat_sounds):
             for j, elem in enumerate(sound):
                 self.sounds_table.setItem(i, j, QTableWidgetItem(str(elem)))
-
+    
+    # Выбор категории
     def category_chosen(self):
         filecat = self.sender().currentItem().text()
         if filecat == 'Все звуки':
@@ -190,23 +196,28 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
         else:
             self.update_category_sounds_table(filecat)
 
+    # Включение/выключение возможности использования горячих клавиш
     def hotkeys_enable_disable(self):
         if self.activate_hotkeys.isChecked():
             self.hotkeys_enabled = True
         else:
             self.hotkeys_enabled = False
 
+    # Получение списка всех категорий
     def get_all_categories_names(self):
         categories = [e[0] for e in self.cur.execute("""SELECT name FROM Categories""").fetchall()]
         categories.append('Без категории')
         return categories
 
+    # Получение списка всех имен звуков
     def get_all_sounds_names(self):
         return [e[0] for e in self.cur.execute("""SELECT name FROM Sounds""").fetchall()]
 
+    # Получение списка всех использованных клавиш и их сочетаний
     def get_all_used_keys(self):
         return [e[0] for e in self.cur.execute("""SELECT key FROM Sounds WHERE key NOT NULL""").fetchall()]
 
+    # Далее идут вызовы всплывающих окон ошибок
     def file_not_found_error(self):
         file_not_found = QMessageBox(self)
         file_not_found.setText('Файл не найден')
@@ -237,6 +248,7 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
         key_line_empty.setWindowTitle('Ошибка!')
         key_line_empty.exec_()
 
+    # Вызов контекстного меню и выполнение выбранного действия
     def eventFilter(self, source, event):
         if event.type() == QEvent.ContextMenu and source is self.categories_table and not self.adding_changing:
             if self.categories_table.selectedItems():
@@ -304,12 +316,14 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
                     elif action == delete_action:
                         self.delete_sound_from_cat()
         return True
-
+    
+    # Переопределение метода на воспроизведение привязанного к клавише/сочетанию клавиш звука
     def keyPressEvent(self, event):
         if self.hotkeys_enabled:
             if keyevent_to_string(event) in self.get_all_used_keys():
                 self.play_sound(True, key_pressed=keyevent_to_string(event))
-
+    
+    # Удаление категории и относящихся к ней звуков
     def delete_category(self):
         try:
             if self.categories_table.currentItem().text() == 'Все звуки':
@@ -331,11 +345,13 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
             tried_del_root.setText('Нельзя удалить корневую категорию')
             tried_del_root.setWindowTitle('Ошибка!')
             tried_del_root.exec_()
-
+    
+    # Вызов диалога для изменения категории
     def change_category(self):
         if not self.adding_changing:
             self.dialog_for_category_action(True)
-
+    
+    # Удаление звука
     def delete_sound(self):
         self.cur.execute("""DELETE FROM Sounds WHERE name = ?""", (self.sounds_table.currentItem().text(), ))
         self.con.commit()
@@ -346,6 +362,7 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
         else:
             self.update_category_sounds_table(self.categories_table.currentItem().text())
 
+    # Смена параметров звука, вызов окна изменения
     def change_sound(self):
         if not self.adding_changing:
             self.adding_changing = True
@@ -353,7 +370,8 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
             change_widget.show()
             change_widget.exec_()
             change_widget.activateWindow()
-
+    
+    # Изменение имени звука
     def change_sound_name(self):
         try:
             if not self.adding_changing:
@@ -382,13 +400,15 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
         finally:
             self.adding_changing = False
 
+    # Установка горячей клавиши/сочетания клавиш для звука с пустым параметром
     def set_hotkey_for_empty(self):
         if not self.adding_changing:
             self.adding_changing = True
             hotkey_widget = SetHotkey('', '', QDialog(), set_empty=True)
             hotkey_widget.show()
             hotkey_widget.exec_()
-
+    
+    # Смена горячей клавиши/сочетания клавиш звука
     def set_new_hotkey(self):
         if not self.adding_changing:
             self.adding_changing = True
@@ -396,6 +416,7 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
             hotkey_widget.show()
             hotkey_widget.exec_()
 
+    # Отмена привязки клавиши/сочетания клавиш к звуку
     def clear_hotkey_line(self):
         self.cur.execute("""UPDATE Sounds SET key = ? WHERE key = ?""", ('', self.sounds_table.currentItem().text()))
         self.con.commit()
@@ -405,25 +426,35 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
             self.update_all_sounds_table()
         else:
             self.update_category_sounds_table(self.categories_table.currentItem().text())
-
+    
+    # Вызов диалога для изменения категории звука или добавления звука без категории в категорию
     def change_or_add_sound_cat(self, adding=False):
         if not self.adding_changing:
             self.adding_changing = True
             self.releaseKeyboard()
             if adding:
-                category, ok = QInputDialog.getItem(self, "Добавить в категорию", "Категория",
-                                                    self.get_all_categories_names()[1:-1], 1, False)
+                if self.get_all_categories_names()[1:-1]:
+                    category, ok = QInputDialog.getItem(self, "Добавить в категорию", "Категория",
+                                                        self.get_all_categories_names()[1:-1], 1, False)
+                else:
+                    category, ok = QInputDialog.getItem(self, "Добавить в категорию", "Категория",
+                                                        ['Без категории'], 1, False)
             else:
-                category, ok = QInputDialog.getItem(self, "Изменить категорию", "Категория",
-                                                    self.get_all_categories_names()[1:-1], 1, False)
+                if self.get_all_categories_names()[1:-1]:
+                    category, ok = QInputDialog.getItem(self, "Изменить категорию", "Категория",
+                                                        self.get_all_categories_names()[1:-1], 1, False)
+                else:
+                    category, ok = QInputDialog.getItem(self, "Изменить категорию", "Категория",
+                                                        ['Без категории'], 1, False)
             if ok:
-                cat_id = int(ex.cur.execute("""SELECT id FROM Categories
-                                                            WHERE name = ?""", (category,)).fetchone()[0])
-                self.cur.execute("""UPDATE Sounds SET cat_id = ? WHERE name = ?""",
-                                 (cat_id, self.sounds_table.item(self.sounds_table.currentItem().row(), 0).text()))
-                self.cur.execute("""UPDATE Sounds SET cat_name = ? WHERE name = ?""",
-                                 (category, self.sounds_table.item(self.sounds_table.currentItem().row(), 0).text()))
-                self.con.commit()
+                if self.get_all_categories_names()[1:-1]
+                    cat_id = int(ex.cur.execute("""SELECT id FROM Categories
+                                                  WHERE name = ?""", (category,)).fetchone()[0])
+                    self.cur.execute("""UPDATE Sounds SET cat_id = ? WHERE name = ?""",
+                                     (cat_id, self.sounds_table.item(self.sounds_table.currentItem().row(), 0).text()))
+                    self.cur.execute("""UPDATE Sounds SET cat_name = ? WHERE name = ?""",
+                                     (category, self.sounds_table.item(self.sounds_table.currentItem().row(), 0).text()))
+                    self.con.commit()
                 if not self.categories_table.selectedItems():
                     self.update_all_sounds_table()
                 elif self.categories_table.currentItem().text() == "Все звуки":
@@ -432,7 +463,8 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
                     self.update_category_sounds_table(self.categories_table.currentItem().text())
         self.adding_changing = False
         self.grabKeyboard()
-
+    
+    # Удаление звука из категории
     def delete_sound_from_cat(self):
         self.cur.execute("""UPDATE Sounds SET cat_id = 0, cat_name = 'Без категории' WHERE name = ?""",
                          (self.sounds_table.item(self.sounds_table.currentItem().row(), 0).text(),))
@@ -443,7 +475,8 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
             self.update_all_sounds_table()
         else:
             self.update_category_sounds_table(self.categories_table.currentItem().text())
-
+    
+    # Возпроизведение звука
     def play_sound(self, by_hotkey=False, key_pressed=''):
         try:
             if by_hotkey:
@@ -471,19 +504,22 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
                 self.paused = False
         except FileNotFoundError:
             self.file_not_found_error()
-
+    
+    # Пауза
     def pause_sound(self):
         if self.player.state() is not QMediaPlayer.PlayingState:
             self.player.pause()
             self.paused = True
-
+    
+    # Остановка воспроизведения
     def stop_sound(self):
         self.player.stop()
-
+    
+    # Изменение громкости приложения 
     def volume_change(self):
         self.player.setVolume(self.volume_slider.value())
 
-
+# Класс виджета добавления/изменения звука
 class AddOrChangeSound(QDialog, Ui_Form):
     def __init__(self, changing=False, old_name=''):
         super().__init__()
@@ -499,7 +535,8 @@ class AddOrChangeSound(QDialog, Ui_Form):
         self.category_choose.addItems(all_categories)
         self.ok_button.clicked.connect(self.agreed_to_add)
         self.cancel_button.clicked.connect(self.disagreed_to_add)
-
+    
+    # Добавление/изменение звука 
     def agreed_to_add(self):
         file_name = self.file_name.text()
         file_category = self.category_choose.currentText()
@@ -547,7 +584,8 @@ class AddOrChangeSound(QDialog, Ui_Form):
                 ex.empty_sound_name_error()
             finally:
                 self.activateWindow()
-
+    
+    # Отказ
     def disagreed_to_add(self):
         self.close()
 
@@ -558,6 +596,7 @@ class AddOrChangeSound(QDialog, Ui_Form):
         ex.grabKeyboard()
 
 
+# Класс виджета назначения горячей клавиши/сочетания клавиш для звука
 class SetHotkey(QDialog, Ui_Hotkey_choose):
     def __init__(self, filename, filecat, widg, change_sound=False, old_name='', change_exist=False, set_empty=False):
         super().__init__()
@@ -576,7 +615,8 @@ class SetHotkey(QDialog, Ui_Hotkey_choose):
         self.old_name = old_name
         self.to_close = widg
         self.grabKeyboard()
-
+    
+    # Назначения горячей клавиши/сочетания клавиш для звука
     def agreed_to_add(self):
         try:
             if self.change_sound or (not self.change_sound and not self.change_exist and not self.set_for_empty):
@@ -635,7 +675,8 @@ class SetHotkey(QDialog, Ui_Hotkey_choose):
 
     def disagreed_to_add(self):
         self.close()
-
+    
+    # Получение названия нажатой клавиши/сочетания клавиш
     def keyPressEvent(self, event):
         self.key_line.setText(keyevent_to_string(event))
 
