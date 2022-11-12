@@ -447,7 +447,7 @@ class SoundpadWidget(QMainWindow, Ui_MainWindow):
                     category, ok = QInputDialog.getItem(self, "Изменить категорию", "Категория",
                                                         ['Без категории'], 1, False)
             if ok:
-                if self.get_all_categories_names()[1:-1]
+                if self.get_all_categories_names()[1:-1]:
                     cat_id = int(ex.cur.execute("""SELECT id FROM Categories
                                                   WHERE name = ?""", (category,)).fetchone()[0])
                     self.cur.execute("""UPDATE Sounds SET cat_id = ? WHERE name = ?""",
